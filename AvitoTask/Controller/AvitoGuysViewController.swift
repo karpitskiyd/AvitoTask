@@ -9,12 +9,11 @@ import UIKit
 
 class AvitoGuysViewController: UIViewController, UITableViewDataSource {
     
-    var employeesArray = [Employee]()
-    let reachability = try! Reachability()
+    private var employeesArray = [Employee]()
+    private let reachability = try! Reachability()
     @IBOutlet weak var tableView: UITableView!
     private let refreshControl = UIRefreshControl()
-    @IBAction func buttonTaped(_ sender: Any) {
-    }
+ 
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -23,31 +22,7 @@ class AvitoGuysViewController: UIViewController, UITableViewDataSource {
         getData()
         setupTableView()
     }
-    
-    private func setupTableView() {
-        let customCell = UINib(nibName: "AvitoGuysTableViewCell",
-                               bundle: nil)
-        if userDefaultsExists(key: "employees") {
-            let data = getDataFromUserDefaults(key: "employees")
-            let time = getTimeInDateFormat(stringDate: data.time!)
-            let interval = Int(-(time!.timeIntervalSinceNow/60 - 180))
-            let font = UIFont.systemFont(ofSize: 12)
-            let attributes = [NSAttributedString.Key.font: font]
 
-            refreshControl.attributedTitle = NSAttributedString(string:
-                                                                    "Last update was \(interval) minutes ago 👻" ,
-                                                                attributes: attributes)
-        }
-        
-        tableView.register(customCell,
-                           forCellReuseIdentifier: "AvitoGuysTableViewCell")
-        tableView.refreshControl = refreshControl
-        refreshControl.addTarget(self, action: #selector(refreshList(_:)), for: .valueChanged)
-        tableView.dataSource = self
-        tableView.rowHeight = 75
-        tableView.separatorStyle = .none
-        
-    }
     
     @objc private func refreshList(_ sender: Any) {
         getData()
@@ -57,9 +32,11 @@ class AvitoGuysViewController: UIViewController, UITableViewDataSource {
         if userDefaultsExists(key: "employees") {
             let data = getDataFromUserDefaults(key: "employees")
             let time = getTimeInDateFormat(stringDate: data.time!)
-            let interval = -(time!.timeIntervalSinceNow/60 - 180)
+            let interval = abs(time!.timeIntervalSinceNow/60)
+            updateRefreshBar(interval: interval)
+
             if interval < 60 {
-                print("data updated \(interval) mins ago")
+                print("data updated \(Int(interval)) mins ago")
                 self.employeesArray = data.array
                 DispatchQueue.main.async {
                     self.tableView.reloadData()
@@ -74,7 +51,7 @@ class AvitoGuysViewController: UIViewController, UITableViewDataSource {
         else {
             sendRequest()
         }
-        self.refreshControl.endRefreshing()
+        refreshControl.endRefreshing()
     }
     
     private func sendRequest() {
@@ -106,7 +83,36 @@ class AvitoGuysViewController: UIViewController, UITableViewDataSource {
             }
         }.resume()
     }
+
+    private func setupTableView() {
+        let customCell = UINib(nibName: "AvitoGuysTableViewCell",
+                               bundle: nil)
+        tableView.register(customCell,
+                           forCellReuseIdentifier: "AvitoGuysTableViewCell")
+        tableView.refreshControl = refreshControl
+        refreshControl.addTarget(self, action: #selector(refreshList(_:)), for: .valueChanged)
+        tableView.dataSource = self
+        tableView.rowHeight = 75
+        tableView.separatorStyle = .none
+        
+    }
     
+    private func updateRefreshBar(interval: Double) {
+
+        let font = UIFont.systemFont(ofSize: 12)
+        let attributes = [NSAttributedString.Key.font: font]
+        if interval < 1 {
+            let secondsInterval = Int(interval*60)
+            refreshControl.attributedTitle = NSAttributedString(string:
+                                                                    "Last update was \(secondsInterval) seconds ago 👻" ,
+                                                                attributes: attributes)
+        } else {
+        refreshControl.attributedTitle = NSAttributedString(string:
+                                                                "Last update was \(Int(interval)) minutes ago 👻" ,
+                                                            attributes: attributes)
+        }
+    }
+
     private func filterArray(array:[Employee]) -> [Employee] {
         let filteredArray = array.sorted(by: { (firstName, secondName) -> Bool in
             let sortedFirstName = firstName.name
@@ -118,15 +124,15 @@ class AvitoGuysViewController: UIViewController, UITableViewDataSource {
     
     private func getTimeInDateFormat(stringDate: String) -> Date? {
         let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "YYYY-MM-dd hh:mm:ss"
-        dateFormatter.timeZone = TimeZone(abbreviation: "GMT")
+        dateFormatter.dateFormat = "YYYY-MM-dd HH:mm:ss"
+        dateFormatter.timeZone = TimeZone(abbreviation: "GMT+3")
         return dateFormatter.date(from: stringDate)
     }
     
     private func getActualTimeInString() -> String {
         let dateNow = Date()
         let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "YYYY-MM-dd hh:mm:ss"
+        dateFormatter.dateFormat = "YYYY-MM-dd HH:mm:ss"
         let dateNowString = dateFormatter.string(from: dateNow)
         
         return dateNowString
